@@ -29,12 +29,14 @@ class _MockCommand(RadioFrequencyCommand):
         self,
         *,
         frequency: int = 433_920_000,
+        modulation: ModulationType = ModulationType.OOK,
         repeat_count: int = 0,
         symbol_rate: int | None = None,
         output_power: float | None = None,
     ) -> None:
         super().__init__(
             frequency=frequency,
+            modulation=modulation,
             repeat_count=repeat_count,
             symbol_rate=symbol_rate,
             output_power=output_power,

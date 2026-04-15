@@ -32,7 +32,7 @@ class RadioFrequencyCommand(abc.ABC):
         self,
         *,
         frequency: int,
-        modulation: ModulationType = ModulationType.OOK,
+        modulation: ModulationType,
         repeat_count: int = 0,
         symbol_rate: int | None = None,
         output_power: float | None = None,
