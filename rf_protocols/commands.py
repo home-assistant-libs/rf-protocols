@@ -32,14 +32,15 @@ class RadioFrequencyCommand(abc.ABC):
         self,
         *,
         frequency: int,
+        modulation: ModulationType = ModulationType.OOK,
         repeat_count: int = 0,
         symbol_rate: int | None = None,
         output_power: float | None = None,
     ) -> None:
         """Initialize the RF command."""
         self.frequency = frequency
+        self.modulation = modulation
         self.repeat_count = repeat_count
-        self.modulation = ModulationType.OOK
         self.symbol_rate = symbol_rate
         self.output_power = output_power
 
