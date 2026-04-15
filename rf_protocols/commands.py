@@ -3,6 +3,7 @@
 import abc
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import override
 
 
 class ModulationType(StrEnum):
@@ -47,3 +48,33 @@ class RadioFrequencyCommand(abc.ABC):
     @abc.abstractmethod
     def get_raw_timings(self) -> list[Timing]:
         """Get raw timings for OOK commands."""
+
+
+class OOKCommand(RadioFrequencyCommand):
+    """OOK command with raw timings."""
+
+    timings: list[Timing]
+
+    def __init__(
+        self,
+        *,
+        frequency: int,
+        timings: list[Timing],
+        repeat_count: int = 0,
+        symbol_rate: int | None = None,
+        output_power: float | None = None,
+    ) -> None:
+        """Initialize the OOK command."""
+        super().__init__(
+            frequency=frequency,
+            modulation=ModulationType.OOK,
+            repeat_count=repeat_count,
+            symbol_rate=symbol_rate,
+            output_power=output_power,
+        )
+        self.timings = timings
+
+    @override
+    def get_raw_timings(self) -> list[Timing]:
+        """Get raw timings."""
+        return self.timings

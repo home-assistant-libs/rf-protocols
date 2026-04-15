@@ -1,6 +1,6 @@
 """Tests for the RF protocol definitions."""
 
-from rf_protocols import ModulationType, RadioFrequencyCommand, Timing
+from rf_protocols import ModulationType, OOKCommand, RadioFrequencyCommand, Timing
 
 
 def test_modulation_type_ook() -> None:
@@ -80,3 +80,35 @@ def test_command_get_raw_timings() -> None:
         Timing(high_us=350, low_us=1050),
         Timing(high_us=350, low_us=350),
     ]
+
+
+def test_ook_command() -> None:
+    """Test OOKCommand with raw timings."""
+    timings = [
+        Timing(high_us=350, low_us=1050),
+        Timing(high_us=350, low_us=350),
+        Timing(high_us=350, low_us=0),
+    ]
+    cmd = OOKCommand(frequency=433_920_000, timings=timings)
+    assert cmd.frequency == 433_920_000
+    assert cmd.modulation == ModulationType.OOK
+    assert cmd.repeat_count == 0
+    assert cmd.get_raw_timings() == timings
+
+
+def test_ook_command_custom_values() -> None:
+    """Test OOKCommand with custom radio parameters."""
+    timings = [Timing(high_us=500, low_us=1000)]
+    cmd = OOKCommand(
+        frequency=868_000_000,
+        timings=timings,
+        repeat_count=2,
+        symbol_rate=4800,
+        output_power=10.0,
+    )
+    assert cmd.frequency == 868_000_000
+    assert cmd.modulation == ModulationType.OOK
+    assert cmd.repeat_count == 2
+    assert cmd.symbol_rate == 4800
+    assert cmd.output_power == 10.0
+    assert cmd.get_raw_timings() == timings
