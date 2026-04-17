@@ -1,5 +1,7 @@
 """Common RF command definitions."""
 
+from __future__ import annotations
+
 import abc
 from dataclasses import dataclass
 from enum import StrEnum
@@ -18,6 +20,19 @@ class Timing:
 
     high_us: int
     low_us: int
+
+    @staticmethod
+    def parse_timings(raw: list[int]) -> list[Timing]:
+        """Convert alternating pulse/space microsecond values to Timing objects.
+
+        The input is a flat sequence where even indices are pulse (high)
+        durations expressed as positive microseconds and odd indices are
+        space (low) durations expressed as negative microseconds.
+        """
+        return [
+            Timing(high_us=high, low_us=-low)
+            for high, low in zip(raw[::2], raw[1::2], strict=True)
+        ]
 
 
 class RadioFrequencyCommand(abc.ABC):

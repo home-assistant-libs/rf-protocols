@@ -1,5 +1,7 @@
 """Tests for the RF protocol definitions."""
 
+import pytest
+
 from rf_protocols import ModulationType, OOKCommand, RadioFrequencyCommand, Timing
 
 
@@ -20,6 +22,25 @@ def test_timing_equality() -> None:
     """Test Timing equality comparison."""
     assert Timing(high_us=350, low_us=1050) == Timing(high_us=350, low_us=1050)
     assert Timing(high_us=350, low_us=1050) != Timing(high_us=350, low_us=350)
+
+
+def test_timing_parse_timings() -> None:
+    """Test Timing.parse_timings converts pulse/space ints to Timing pairs."""
+    assert Timing.parse_timings([2000, -550, 450, -1000]) == [
+        Timing(high_us=2000, low_us=550),
+        Timing(high_us=450, low_us=1000),
+    ]
+
+
+def test_timing_parse_timings_empty() -> None:
+    """Test Timing.parse_timings accepts an empty list."""
+    assert Timing.parse_timings([]) == []
+
+
+def test_timing_parse_timings_odd_length() -> None:
+    """Test Timing.parse_timings rejects unpaired values."""
+    with pytest.raises(ValueError):
+        Timing.parse_timings([2000, -550, 450])
 
 
 class _MockCommand(RadioFrequencyCommand):
