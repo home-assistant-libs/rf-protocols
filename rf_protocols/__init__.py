@@ -1,16 +1,12 @@
 """Library to decode and encode radio frequency signals."""
 
-from .commands import ModulationType, OOKCommand, RadioFrequencyCommand, Timing
-from .honeywell_string_lights import (
-    HoneywellStringLightsTurnOff,
-    HoneywellStringLightsTurnOn,
-)
+from .commands import ModulationType, OOKCommand, RadioFrequencyCommand
+from .loader import CodeCollection, load_codes
 
 __all__ = [
-    "HoneywellStringLightsTurnOff",
-    "HoneywellStringLightsTurnOn",
+    "CodeCollection",
     "ModulationType",
     "OOKCommand",
     "RadioFrequencyCommand",
-    "Timing",
+    "load_codes",
 ]
