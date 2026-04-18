@@ -43,17 +43,17 @@ class CodeCollection:
         return f"CodeCollection({self._codes_dir})"
 
 
-def load_codes(path: str, base_dir: Path | str | None = None) -> CodeCollection:
-    """Return a :class:`CodeCollection` for a device.
+def get_codes(name: str, base_dir: Path | str | None = None) -> CodeCollection:
+    """Return a :class:`CodeCollection` for a named device.
 
-    Resolves ``path`` under ``base_dir`` (default: bundled codes directory)
-    and verifies the directory exists and stays within ``base_dir``. No
-    ``.sub`` files are read.
+    Resolves ``name`` as an identifier under ``base_dir`` (default: bundled
+    codes directory) and verifies the directory exists and stays within
+    ``base_dir``. No ``.sub`` files are read.
     """
     root = (Path(base_dir) if base_dir is not None else _DEFAULT_BASE_DIR).resolve()
-    codes_dir = (root / path).resolve()
+    codes_dir = (root / name).resolve()
     if not codes_dir.is_relative_to(root):
-        raise ValueError(f"{path!r} resolves outside of {root}")
+        raise ValueError(f"{name!r} resolves outside of {root}")
     if not codes_dir.is_dir():
         raise FileNotFoundError(f"No codes directory at {codes_dir}")
     return CodeCollection(codes_dir)
