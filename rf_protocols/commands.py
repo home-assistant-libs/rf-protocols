@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import abc
-from dataclasses import dataclass
 from enum import StrEnum
 from typing import override
 
@@ -12,27 +11,6 @@ class ModulationType(StrEnum):
     """RF modulation type."""
 
     OOK = "OOK"
-
-
-@dataclass(frozen=True, slots=True)
-class Timing:
-    """High/low signal timing for OOK modulation."""
-
-    high_us: int
-    low_us: int
-
-    @staticmethod
-    def parse_timings(raw: list[int]) -> list[Timing]:
-        """Convert alternating pulse/space microsecond values to Timing objects.
-
-        The input is a flat sequence where even indices are pulse (high)
-        durations expressed as positive microseconds and odd indices are
-        space (low) durations expressed as negative microseconds.
-        """
-        return [
-            Timing(high_us=high, low_us=-low)
-            for high, low in zip(raw[::2], raw[1::2], strict=True)
-        ]
 
 
 class RadioFrequencyCommand(abc.ABC):
@@ -61,20 +39,34 @@ class RadioFrequencyCommand(abc.ABC):
         self.output_power = output_power
 
     @abc.abstractmethod
-    def get_raw_timings(self) -> list[Timing]:
-        """Get raw timings for OOK commands."""
+    def get_raw_timings(self) -> list[int]:
+        """Get raw timings as signed alternating microseconds.
+
+        Even indices are pulse (high) durations expressed as positive
+        microseconds; odd indices are space (low) durations expressed as
+        negative microseconds. This matches Flipper's RAW ``.sub`` format.
+        """
+
+    def __repr__(self) -> str:
+        """Return a concise representation for logging."""
+        return (
+            f"{type(self).__name__}("
+            f"{self.modulation}, "
+            f"{self.frequency / 1_000_000:g} MHz, "
+            f"repeat={self.repeat_count})"
+        )
 
 
 class OOKCommand(RadioFrequencyCommand):
     """OOK command with raw timings."""
 
-    timings: list[Timing]
+    timings: list[int]
 
     def __init__(
         self,
         *,
         frequency: int,
-        timings: list[Timing],
+        timings: list[int],
         repeat_count: int = 0,
         symbol_rate: int | None = None,
         output_power: float | None = None,
@@ -90,6 +82,6 @@ class OOKCommand(RadioFrequencyCommand):
         self.timings = timings
 
     @override
-    def get_raw_timings(self) -> list[Timing]:
+    def get_raw_timings(self) -> list[int]:
         """Get raw timings."""
         return self.timings

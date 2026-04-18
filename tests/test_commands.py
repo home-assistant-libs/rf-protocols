@@ -1,46 +1,12 @@
 """Tests for the RF protocol definitions."""
 
-import pytest
-
-from rf_protocols import ModulationType, OOKCommand, RadioFrequencyCommand, Timing
+from rf_protocols import ModulationType, OOKCommand, RadioFrequencyCommand
 
 
 def test_modulation_type_ook() -> None:
     """Test ModulationType enum has OOK value."""
     assert ModulationType.OOK == "OOK"
     assert ModulationType.OOK.value == "OOK"
-
-
-def test_timing_frozen() -> None:
-    """Test Timing is a frozen dataclass."""
-    timing = Timing(high_us=350, low_us=1050)
-    assert timing.high_us == 350
-    assert timing.low_us == 1050
-
-
-def test_timing_equality() -> None:
-    """Test Timing equality comparison."""
-    assert Timing(high_us=350, low_us=1050) == Timing(high_us=350, low_us=1050)
-    assert Timing(high_us=350, low_us=1050) != Timing(high_us=350, low_us=350)
-
-
-def test_timing_parse_timings() -> None:
-    """Test Timing.parse_timings converts pulse/space ints to Timing pairs."""
-    assert Timing.parse_timings([2000, -550, 450, -1000]) == [
-        Timing(high_us=2000, low_us=550),
-        Timing(high_us=450, low_us=1000),
-    ]
-
-
-def test_timing_parse_timings_empty() -> None:
-    """Test Timing.parse_timings accepts an empty list."""
-    assert Timing.parse_timings([]) == []
-
-
-def test_timing_parse_timings_odd_length() -> None:
-    """Test Timing.parse_timings rejects unpaired values."""
-    with pytest.raises(ValueError):
-        Timing.parse_timings([2000, -550, 450])
 
 
 class _MockCommand(RadioFrequencyCommand):
@@ -63,9 +29,9 @@ class _MockCommand(RadioFrequencyCommand):
             output_power=output_power,
         )
 
-    def get_raw_timings(self) -> list[Timing]:
+    def get_raw_timings(self) -> list[int]:
         """Return a simple test pattern."""
-        return [Timing(high_us=350, low_us=1050), Timing(high_us=350, low_us=350)]
+        return [350, -1050, 350, -350]
 
 
 def test_command_defaults() -> None:
@@ -96,20 +62,12 @@ def test_command_custom_values() -> None:
 def test_command_get_raw_timings() -> None:
     """Test get_raw_timings returns expected timings."""
     cmd = _MockCommand()
-    timings = cmd.get_raw_timings()
-    assert timings == [
-        Timing(high_us=350, low_us=1050),
-        Timing(high_us=350, low_us=350),
-    ]
+    assert cmd.get_raw_timings() == [350, -1050, 350, -350]
 
 
 def test_ook_command() -> None:
     """Test OOKCommand with raw timings."""
-    timings = [
-        Timing(high_us=350, low_us=1050),
-        Timing(high_us=350, low_us=350),
-        Timing(high_us=350, low_us=0),
-    ]
+    timings = [350, -1050, 350, -350]
     cmd = OOKCommand(frequency=433_920_000, timings=timings)
     assert cmd.frequency == 433_920_000
     assert cmd.modulation == ModulationType.OOK
@@ -117,9 +75,19 @@ def test_ook_command() -> None:
     assert cmd.get_raw_timings() == timings
 
 
+def test_command_repr() -> None:
+    """Test RadioFrequencyCommand has a readable repr for subclasses."""
+    cmd = OOKCommand(
+        frequency=433_920_000,
+        timings=[350, -1050],
+        repeat_count=5,
+    )
+    assert repr(cmd) == "OOKCommand(OOK, 433.92 MHz, repeat=5)"
+
+
 def test_ook_command_custom_values() -> None:
     """Test OOKCommand with custom radio parameters."""
-    timings = [Timing(high_us=500, low_us=1000)]
+    timings = [500, -1000]
     cmd = OOKCommand(
         frequency=868_000_000,
         timings=timings,
