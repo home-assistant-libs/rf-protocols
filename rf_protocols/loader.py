@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
-from typing import Any
 
-from .commands import OOKCommand, RadioFrequencyCommand
+from .commands import RadioFrequencyCommand
+from .parser import parse_sub_content
 
 _DEFAULT_BASE_DIR = Path(__file__).parent / "codes"
 
@@ -34,9 +35,21 @@ class CodeCollection:
         sub_file = self._codes_dir / f"{name.lower()}.sub"
         if not sub_file.is_file():
             raise KeyError(f"No command {name!r} in {self._codes_dir}")
-        cmd = _parse_sub_content(sub_file.read_text())
+        cmd = parse_sub_content(sub_file.read_text())
         self._cache[name] = cmd
         return cmd
+
+    async def async_load_command(self, name: str) -> RadioFrequencyCommand:
+        """Async variant of :meth:`load_command`.
+
+        Returns the cached command synchronously when available; otherwise
+        reads and parses the ``.sub`` file in the default executor.
+        """
+        if (cached := self._cache.get(name)) is not None:
+            return cached
+        return await asyncio.get_running_loop().run_in_executor(
+            None, self.load_command, name
+        )
 
     def __repr__(self) -> str:
         """Return a concise representation."""
@@ -57,48 +70,3 @@ def get_codes(name: str, base_dir: Path | str | None = None) -> CodeCollection:
     if not codes_dir.is_dir():
         raise FileNotFoundError(f"No codes directory at {codes_dir}")
     return CodeCollection(codes_dir)
-
-
-def _parse_sub_content(content: str) -> RadioFrequencyCommand:
-    """Parse a Flipper ``.sub`` file into a :class:`RadioFrequencyCommand`."""
-    fields: dict[str, str] = {}
-    raw_parts: list[str] = []
-    for raw_line in content.splitlines():
-        line = raw_line.strip()
-        if not line:
-            continue
-        key, sep, value = line.partition(":")
-        if not sep:
-            continue
-        key = key.strip()
-        value = value.strip()
-        if key == "RAW_Data":
-            raw_parts.append(value)
-        else:
-            fields[key] = value
-
-    protocol = fields.get("Protocol", "")
-    if protocol != "RAW":
-        raise ValueError(f"Unsupported Protocol {protocol!r}; only RAW is supported")
-
-    preset = fields.get("Preset", "")
-    if "Ook" not in preset:
-        raise ValueError(
-            f"Unsupported Preset {preset!r}; only OOK presets are supported"
-        )
-
-    if "Frequency" not in fields:
-        raise ValueError("Missing Frequency field")
-    if not raw_parts:
-        raise ValueError("Missing RAW_Data field")
-
-    timings = [int(v) for part in raw_parts for v in part.split()]
-    if len(timings) % 2 != 0:
-        raise ValueError("RAW_Data must contain an even number of values")
-
-    kwargs: dict[str, Any] = {
-        "frequency": int(fields["Frequency"]),
-        "timings": timings,
-        "repeat_count": int(fields.get("Repeat", "0")),
-    }
-    return OOKCommand(**kwargs)

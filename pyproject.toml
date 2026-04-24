@@ -46,4 +46,7 @@ max-complexity = 25
 typeCheckingMode = "standard"
 
 [project.optional-dependencies]
-dev = ["pytest", "prek"]
+dev = ["pytest", "pytest-asyncio", "prek"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
