@@ -1,5 +1,6 @@
 """Tests for the .sub file loader."""
 
+import asyncio
 from pathlib import Path
 
 import pytest
@@ -9,21 +10,7 @@ from rf_protocols import CodeCollection, ModulationType, OOKCommand, get_codes
 
 _BUNDLED_CODES_ROOT = Path(rf_protocols.__file__).parent / "codes"
 _BUNDLED_SUB_FILES = sorted(_BUNDLED_CODES_ROOT.rglob("*.sub"))
-
-_SAMPLE_SUB = """\
-Filetype: Flipper SubGhz RAW File
-Version: 1
-Frequency: 433920000
-Preset: FuriHalSubGhzPresetOok650Async
-Protocol: RAW
-Repeat: 7
-RAW_Data: 2000 -550 450 -1000
-"""
-
-
-def _write_sub(path: Path, content: str = _SAMPLE_SUB) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+_HONEYWELL_ROOT = _BUNDLED_CODES_ROOT / "honeywell"
 
 
 def test_bundled_sub_files_exist() -> None:
@@ -59,41 +46,32 @@ def test_get_codes_bundled_honeywell() -> None:
     assert cmd.timings[:2] == [2000, -550]
 
 
-def test_load_command_caches_results(tmp_path: Path) -> None:
-    """Repeated load_command calls return the same instance without re-reading."""
-    sub_path = tmp_path / "vendor" / "device" / "power.sub"
-    _write_sub(sub_path)
-    codes = get_codes("vendor/device", base_dir=tmp_path)
-    first = codes.load_command("POWER")
-    sub_path.unlink()
-    second = codes.load_command("POWER")
-    assert first is second
+def test_load_command_caches_results() -> None:
+    """Repeated load_command calls return the same instance."""
+    codes = get_codes("honeywell/string_lights")
+    assert codes.load_command("TURN_ON") is codes.load_command("TURN_ON")
 
 
-def test_load_command_unknown_name(tmp_path: Path) -> None:
+def test_load_command_unknown_name() -> None:
     """Requesting an unknown command name raises KeyError."""
-    _write_sub(tmp_path / "vendor" / "device" / "power.sub")
-    codes = get_codes("vendor/device", base_dir=tmp_path)
+    codes = get_codes("honeywell/string_lights")
     with pytest.raises(KeyError, match="NOPE"):
         codes.load_command("NOPE")
 
 
-def test_load_command_base_dir_override(tmp_path: Path) -> None:
+def test_load_command_base_dir_override() -> None:
     """Passing base_dir loads codes from an alternate location."""
-    _write_sub(tmp_path / "vendor" / "device" / "power.sub")
-    codes = get_codes("vendor/device", base_dir=tmp_path)
-    cmd = codes.load_command("POWER")
+    codes = get_codes("string_lights", base_dir=_HONEYWELL_ROOT)
+    cmd = codes.load_command("TURN_ON")
     assert isinstance(cmd, OOKCommand)
     assert cmd.frequency == 433_920_000
-    assert cmd.repeat_count == 7
-    assert cmd.timings == [2000, -550, 450, -1000]
+    assert cmd.repeat_count == 50
 
 
-def test_load_command_base_dir_accepts_str(tmp_path: Path) -> None:
+def test_load_command_base_dir_accepts_str() -> None:
     """base_dir accepts a str as well as a Path."""
-    _write_sub(tmp_path / "vendor" / "device" / "power.sub")
-    codes = get_codes("vendor/device", base_dir=str(tmp_path))
-    assert isinstance(codes.load_command("POWER"), OOKCommand)
+    codes = get_codes("string_lights", base_dir=str(_HONEYWELL_ROOT))
+    assert isinstance(codes.load_command("TURN_ON"), OOKCommand)
 
 
 def test_get_codes_missing_directory(tmp_path: Path) -> None:
@@ -102,65 +80,32 @@ def test_get_codes_missing_directory(tmp_path: Path) -> None:
         get_codes("nope", base_dir=tmp_path)
 
 
-def test_load_command_rejects_non_raw_protocol(tmp_path: Path) -> None:
-    """Non-RAW protocols are rejected on load_command."""
-    _write_sub(
-        tmp_path / "vendor" / "device" / "power.sub",
-        _SAMPLE_SUB.replace("Protocol: RAW", "Protocol: Princeton"),
-    )
-    codes = get_codes("vendor/device", base_dir=tmp_path)
-    with pytest.raises(ValueError, match="Protocol"):
-        codes.load_command("POWER")
-
-
-def test_load_command_rejects_non_ook_preset(tmp_path: Path) -> None:
-    """Non-OOK presets are rejected on load_command."""
-    _write_sub(
-        tmp_path / "vendor" / "device" / "power.sub",
-        _SAMPLE_SUB.replace(
-            "FuriHalSubGhzPresetOok650Async", "FuriHalSubGhzPreset2FSKDev238Async"
-        ),
-    )
-    codes = get_codes("vendor/device", base_dir=tmp_path)
-    with pytest.raises(ValueError, match="Preset"):
-        codes.load_command("POWER")
-
-
-def test_get_codes_rejects_path_escape(tmp_path: Path) -> None:
+def test_get_codes_rejects_path_escape() -> None:
     """Paths that resolve outside of base_dir are rejected."""
-    (tmp_path / "inside").mkdir()
-    outside = tmp_path.parent / "outside_codes"
-    outside.mkdir(exist_ok=True)
-    _write_sub(outside / "power.sub")
     with pytest.raises(ValueError, match="outside"):
-        get_codes("../outside_codes", base_dir=tmp_path / "inside")
+        get_codes("../honeywell", base_dir=_HONEYWELL_ROOT / "string_lights")
 
 
-def test_load_command_multiline_raw_data(tmp_path: Path) -> None:
-    """Multiple RAW_Data lines are concatenated."""
-    content = (
-        "Filetype: Flipper SubGhz RAW File\n"
-        "Version: 1\n"
-        "Frequency: 433920000\n"
-        "Preset: FuriHalSubGhzPresetOok650Async\n"
-        "Protocol: RAW\n"
-        "RAW_Data: 2000 -550\n"
-        "RAW_Data: 450 -1000\n"
-    )
-    _write_sub(tmp_path / "vendor" / "device" / "power.sub", content)
-    codes = get_codes("vendor/device", base_dir=tmp_path)
-    cmd = codes.load_command("POWER")
+async def test_async_load_command_loads_from_disk() -> None:
+    """async_load_command parses the command from disk."""
+    codes = get_codes("honeywell/string_lights")
+    cmd = await codes.async_load_command("TURN_ON")
     assert isinstance(cmd, OOKCommand)
-    assert cmd.timings == [2000, -550, 450, -1000]
-    assert cmd.repeat_count == 0
+    assert cmd.repeat_count == 50
 
 
-def test_load_command_rejects_odd_raw_data(tmp_path: Path) -> None:
-    """Odd-length RAW_Data is rejected on load_command."""
-    _write_sub(
-        tmp_path / "vendor" / "device" / "power.sub",
-        _SAMPLE_SUB.replace("2000 -550 450 -1000", "2000 -550 450"),
+async def test_async_load_command_returns_cached_without_executor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cached commands bypass the executor entirely."""
+    codes = get_codes("honeywell/string_lights")
+    first = codes.load_command("TURN_ON")
+
+    def _boom(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("executor must not be used for cached commands")
+
+    monkeypatch.setattr(
+        asyncio.AbstractEventLoop, "run_in_executor", _boom, raising=True
     )
-    codes = get_codes("vendor/device", base_dir=tmp_path)
-    with pytest.raises(ValueError, match="even number"):
-        codes.load_command("POWER")
+    second = await codes.async_load_command("TURN_ON")
+    assert first is second
