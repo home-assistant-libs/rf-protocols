@@ -1,6 +1,7 @@
 """Tests for the RF protocol definitions."""
 
-from rf_protocols import ModulationType, OOKCommand, RadioFrequencyCommand
+from rf_protocols import ModulationType, RadioFrequencyCommand
+from rf_protocols.commands.ook import OOKCommand
 
 
 def test_modulation_type_ook() -> None:

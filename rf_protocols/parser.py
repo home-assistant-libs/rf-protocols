@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from .commands import OOKCommand, RadioFrequencyCommand
+from .commands import RadioFrequencyCommand
+from .commands.ook import OOKCommand
 
 
 def parse_sub_content(content: str) -> RadioFrequencyCommand:
