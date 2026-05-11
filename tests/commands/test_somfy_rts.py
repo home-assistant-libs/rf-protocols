@@ -1,7 +1,8 @@
 """Tests for the RF protocol definitions."""
 
 from rf_protocols import ModulationType, RadioFrequencyCommand
-from rf_protocols.commands.somfy_rts import SomfyRTSButton, SomfyRTSCommand
+from rf_protocols.codes.somfy.rts import SomfyRTSButton
+from rf_protocols.commands.somfy_rts import SomfyRTSCommand
 
 
 def test_somfy_rts_button_values() -> None:
@@ -87,6 +88,16 @@ def test_somfy_rts_command_timings_vary_by_address() -> None:
     timings_a = SomfyRTSCommand(**base, address=0x1A2B3C).get_raw_timings()
     timings_b = SomfyRTSCommand(**base, address=0xABCDEF).get_raw_timings()
     assert timings_a != timings_b
+
+
+def test_somfy_rts_button_to_command() -> None:
+    """Test SomfyRTSButton.to_command builds a SomfyRTSCommand with the button code."""
+    cmd = SomfyRTSButton.UP.to_command(address=0x1A2B3C, rolling_code=42)
+    assert isinstance(cmd, SomfyRTSCommand)
+    assert cmd.address == 0x1A2B3C
+    assert cmd.rolling_code == 42
+    assert cmd.button == SomfyRTSButton.UP
+    assert cmd.frame_repeats == 3
 
 
 def test_somfy_rts_command_frame_repeats() -> None:

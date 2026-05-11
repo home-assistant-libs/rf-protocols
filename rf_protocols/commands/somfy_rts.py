@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from enum import IntEnum
 from typing import override
 
 from . import ModulationType, RadioFrequencyCommand
@@ -10,18 +9,6 @@ from . import ModulationType, RadioFrequencyCommand
 # Somfy RTS operates at 433.42 MHz with OOK modulation.
 _SOMFY_RTS_FREQUENCY = 433_420_000
 _SOMFY_RTS_REPEAT_COUNT = 2
-
-
-class SomfyRTSButton(IntEnum):
-    """Somfy RTS button identifiers.
-
-    Values are the protocol command nibbles transmitted in the frame.
-    """
-
-    MY = 0x1
-    UP = 0x2
-    DOWN = 0x4
-    PROG = 0x8
 
 
 class SomfyRTSCommand(RadioFrequencyCommand):
@@ -39,7 +26,7 @@ class SomfyRTSCommand(RadioFrequencyCommand):
 
     address: int
     rolling_code: int
-    button: SomfyRTSButton
+    button: int
     frame_repeats: int
 
     def __init__(
@@ -47,7 +34,7 @@ class SomfyRTSCommand(RadioFrequencyCommand):
         *,
         address: int,
         rolling_code: int,
-        button: SomfyRTSButton,
+        button: int,
         frame_repeats: int = 3,
     ) -> None:
         """Initialize the Somfy RTS command."""
