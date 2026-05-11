@@ -2,7 +2,8 @@
 
 import pytest
 
-from rf_protocols import OOKCommand, parse_sub_content
+from rf_protocols.commands.ook import OOKCommand
+from rf_protocols.parser import parse_sub_content
 
 _SAMPLE_SUB = """\
 Filetype: Flipper SubGhz RAW File

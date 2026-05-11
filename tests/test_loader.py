@@ -6,7 +6,9 @@ from pathlib import Path
 import pytest
 
 import rf_protocols
-from rf_protocols import CodeCollection, ModulationType, OOKCommand, get_codes
+from rf_protocols import ModulationType
+from rf_protocols.commands.ook import OOKCommand
+from rf_protocols.loader import CodeCollection, get_codes
 
 _BUNDLED_CODES_ROOT = Path(rf_protocols.__file__).parent / "codes"
 _BUNDLED_SUB_FILES = sorted(_BUNDLED_CODES_ROOT.rglob("*.sub"))
