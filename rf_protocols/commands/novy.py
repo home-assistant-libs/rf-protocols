@@ -35,38 +35,25 @@ _CHANNEL_CODES: dict[int, int] = {
     10: 0x1EA,
 }
 
-# Each entry is (key_value, key_width_bits).
-_KEYS: dict[str, tuple[int, int]] = {
-    "minus": (0b01, 2),
-    "plus": (0b10, 2),
-    "ambient": (0b11, 2),
-    "power": (0x2C, 8),
-    "light": (0x2E, 8),
-    "light_minus": (0x31, 8),
-    "light_plus": (0x34, 8),
-    "ambient_minus": (0x29, 8),
-    "ambient_plus": (0x32, 8),
-    "minus_plus": (0x37, 8),
-}
-
 
 class NovyCookerHoodCommand(RadioFrequencyCommand):
     """Encode a Novy cooker-hood RF remote frame.
 
-    Sends one of the 10 channels with the given key. Use the 4-button
-    keys (``plus``, ``minus``, ``light``, ``power``, ``ambient``) for the
-    physical 4-button remote; the remaining keys are multi-button combos.
+    Sends one of the 10 channels with the given key. Button names and
+    their key codes are exposed by ``rf_protocols.codes.novy.cooker_hood``.
     """
 
     channel: int
-    key: str
+    key: int
+    key_width: int
     timebase_us: int
 
     def __init__(
         self,
         *,
         channel: int,
-        key: str,
+        key: int,
+        key_width: int,
         timebase_us: int = _DEFAULT_TIMEBASE_US,
         frequency: int = _DEFAULT_FREQUENCY,
         repeat_count: int = _DEFAULT_REPEATS,
@@ -74,8 +61,8 @@ class NovyCookerHoodCommand(RadioFrequencyCommand):
         """Initialize the Novy command."""
         if channel not in _CHANNEL_CODES:
             raise ValueError("channel must be in range 1..10")
-        if key not in _KEYS:
-            raise ValueError(f"key must be one of {sorted(_KEYS)}")
+        if key < 0 or key >= (1 << key_width):
+            raise ValueError(f"key must fit in {key_width} bits")
 
         super().__init__(
             frequency=frequency,
@@ -84,6 +71,7 @@ class NovyCookerHoodCommand(RadioFrequencyCommand):
         )
         self.channel = channel
         self.key = key
+        self.key_width = key_width
         self.timebase_us = timebase_us
 
     @override
@@ -92,10 +80,9 @@ class NovyCookerHoodCommand(RadioFrequencyCommand):
         short_us = self.timebase_us
         long_us = 2 * short_us
         channel_code = _CHANNEL_CODES[self.channel]
-        key_value, key_width = _KEYS[self.key]
 
         channel_bits = [(channel_code >> i) & 1 for i in range(9, -1, -1)]
-        key_bits = [(key_value >> i) & 1 for i in range(key_width - 1, -1, -1)]
+        key_bits = [(self.key >> i) & 1 for i in range(self.key_width - 1, -1, -1)]
 
         timings: list[int] = [short_us]  # leading start mark
         for bit in channel_bits + key_bits:
