@@ -5,6 +5,9 @@ encoder (lib/subghz/protocols/marantec.c) for the documented sample keys,
 including the unit-test key from Flipper's marantec.sub resource.
 """
 
+import pytest
+
+from rf_protocols import ModulationType, RadioFrequencyCommand
 from rf_protocols.commands.marantec import MarantecCommand
 
 # Flipper marantec.sub unit-test key: 00 01 30 07 10 DF 86 9F -> 0x1300710DF869F
@@ -25,12 +28,26 @@ _EXPECTED_TEST_KEY = [
 ]
 
 
-def test_marantec_defaults() -> None:
-    """Default frequency, modulation and repeat are set correctly."""
+def test_marantec_command_rf_parameters() -> None:
+    """MarantecCommand stores expected RF command metadata."""
     command = MarantecCommand(code=_TEST_KEY)
     assert command.frequency == 868_350_000
-    assert command.modulation == "OOK"
+    assert command.modulation == ModulationType.OOK
     assert command.repeat_count == 3
+    assert command.symbol_rate is None
+    assert command.output_power is None
+
+
+def test_marantec_command_is_radio_frequency_command() -> None:
+    """MarantecCommand is a RadioFrequencyCommand subclass."""
+    command = MarantecCommand(code=_TEST_KEY)
+    assert isinstance(command, RadioFrequencyCommand)
+
+
+def test_marantec_command_stores_code() -> None:
+    """Constructor stores the code on the command."""
+    command = MarantecCommand(code=_TEST_KEY)
+    assert command.code == _TEST_KEY
 
 
 def test_marantec_timings_match_reference() -> None:
@@ -64,10 +81,15 @@ def test_marantec_custom_frequency() -> None:
     assert command.frequency == 433_920_000
 
 
-def test_marantec_rejects_oversized_code() -> None:
-    """A code wider than 49 bits raises ValueError."""
-    try:
-        MarantecCommand(code=1 << 49)
-    except ValueError:
-        return
-    raise AssertionError("expected ValueError for 50-bit code")
+def test_marantec_code_affects_timings() -> None:
+    """Different codes produce different encoded timings."""
+    first = MarantecCommand(code=_TEST_KEY).get_raw_timings()
+    second = MarantecCommand(code=0x1307EDF6486C5).get_raw_timings()
+    assert first != second
+
+
+@pytest.mark.parametrize("code", [-1, 1 << 49])
+def test_marantec_command_rejects_invalid_code(code: int) -> None:
+    """Constructor rejects codes outside the 49-bit range."""
+    with pytest.raises(ValueError, match="code"):
+        MarantecCommand(code=code)
