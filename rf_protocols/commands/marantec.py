@@ -15,11 +15,13 @@ from typing import override
 
 from . import ModulationType, RadioFrequencyCommand
 
-_DEFAULT_FREQUENCY = 868_350_000
-_REPEAT_COUNT = 4
+_MARANTEC_FREQUENCY = 868_350_000
+_MARANTEC_REPEAT_COUNT = 4
+
 _TE_SHORT = 1000
 _TE_LONG = 2000
-_INTER_FRAME_US = _TE_LONG * 5
+_HEADER_LOW = _TE_LONG * 5
+
 _BIT_COUNT = 49
 
 
@@ -32,7 +34,7 @@ class MarantecCommand(RadioFrequencyCommand):
         self,
         *,
         code: int,
-        frequency: int = _DEFAULT_FREQUENCY,
+        frequency: int = _MARANTEC_FREQUENCY,
     ) -> None:
         """Initialize the Marantec command."""
         if code < 0 or code >= (1 << _BIT_COUNT):
@@ -40,7 +42,7 @@ class MarantecCommand(RadioFrequencyCommand):
         super().__init__(
             frequency=frequency,
             modulation=ModulationType.OOK,
-            repeat_count=_REPEAT_COUNT,
+            repeat_count=_MARANTEC_REPEAT_COUNT,
         )
         self.code = code
 
@@ -73,5 +75,5 @@ class MarantecCommand(RadioFrequencyCommand):
                 add(_TE_SHORT)
                 add(-_TE_SHORT)
 
-        add(-_INTER_FRAME_US)
+        add(-_HEADER_LOW)
         return timings
