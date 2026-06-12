@@ -3,7 +3,6 @@
 from enum import IntEnum
 
 from ....commands.harbor_breeze_a25 import HarborBreezeA25Command
-from ....loader import get_codes
 
 
 class HarborBreezeA25Button(IntEnum):
@@ -33,5 +32,3 @@ class HarborBreezeA25Button(IntEnum):
         """Build a Harbor Breeze command for this button and address."""
         return HarborBreezeA25Command(address=address, command=self.value)
 
-
-CODES = get_codes("harbor_breeze/a25")
