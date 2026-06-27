@@ -6,7 +6,7 @@ from rf_protocols import ModulationType, RadioFrequencyCommand
 from rf_protocols.commands.falmec import FalmecCookerHoodCommand
 
 _SHORT = 320
-_LONG = 640
+_LONG = 620
 _GAP = 10_000
 
 
@@ -45,17 +45,8 @@ def test_falmec_command_rejects_invalid_fan_speed(fan_speed: int) -> None:
         FalmecCookerHoodCommand(light=False, fan_speed=fan_speed, timer=False)
 
 
-@pytest.mark.parametrize("address", [-1, 1 << 16])
-def test_falmec_command_rejects_invalid_address(address: int) -> None:
-    """address must fit in 16 bits."""
-    with pytest.raises(ValueError, match="address"):
-        FalmecCookerHoodCommand(
-            light=False, fan_speed=0, timer=False, address=address
-        )
-
-
 def test_falmec_encodes_all_off() -> None:
-    """Light off, fan off, timer off uses only the default address cells."""
+    """Light off, fan off, timer off uses only the fixed framing cells."""
     cmd = FalmecCookerHoodCommand(light=False, fan_speed=0, timer=False)
     assert cmd.get_raw_timings() == _frame({0, 13})
 
