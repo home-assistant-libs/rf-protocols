@@ -120,6 +120,7 @@ class ITTristateCommand(PT2262Command):
     MAX_GROUP: Final = 4
     MIN_CHANNEL: Final = 1
     MAX_CHANNEL: Final = 4
+    REPEAT_COUNT_LEARN: Final = 10
 
     def __init__(
         self,
