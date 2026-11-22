@@ -47,7 +47,7 @@ References:
 
 from __future__ import annotations
 
-from typing import override
+from typing import Final, override
 
 from . import ModulationType, RadioFrequencyCommand
 
@@ -83,6 +83,16 @@ class PT2262Command(RadioFrequencyCommand):
         self.data = normalized_data
         self.timebase_us = timebase_us
 
+    def _encode_bits(self, val: int, symbol_low: str, symbol_high: str, width: int, msb: bool) -> str:
+        """Encode an integer value into a string of symbols."""
+        bits = format(val, f"0{width}b")
+        if not msb:
+            bits = bits[::-1]
+        encoded = ""
+        for bit in bits:
+            encoded += symbol_high if bit == "1" else symbol_low
+        return encoded
+
     @override
     def get_raw_timings(self) -> list[int]:
         """Compute the PT2262 frame timings followed by the sync symbol."""
@@ -101,3 +111,78 @@ class PT2262Command(RadioFrequencyCommand):
             timings.extend(symbols[symbol])
         timings.extend([short_us, -sync_low_us])
         return timings
+
+class ITTristateCommand(PT2262Command):
+    """OOK command for Intertechno tristate devices."""
+
+    VALID_HOUSECODES: Final = tuple("ABCDEFGHIJKLMNOP")
+    MIN_GROUP: Final = 1
+    MAX_GROUP: Final = 4
+    MIN_CHANNEL: Final = 1
+    MAX_CHANNEL: Final = 4
+
+    def __init__(
+        self,
+        *,
+        housecode: str,
+        group: int | None = None,
+        channel: int | None = None,
+        onoff: bool,
+        timebase_us: int = 350,
+        frequency: int = 433_920_000,
+        repeat_count: int = 5,
+    ) -> None:
+        """Initialize the Intertechno tristate command."""
+        tristatedata = ""
+
+        normalized_housecode = housecode.upper()
+        if normalized_housecode not in self.VALID_HOUSECODES:
+            raise ValueError("housecode must be in [A-P]")
+
+        tristatedata += self._encode_bits(
+            val=ord(normalized_housecode) - ord("A"),
+            symbol_low="0",
+            symbol_high="F",
+            width=4,
+            msb=False,
+        )
+
+        if channel is None:
+            tristatedata += "XX" # switch all channels
+        else:
+            if not (self.MIN_CHANNEL <= channel <= self.MAX_CHANNEL):
+                raise ValueError(f"channel must be between {self.MIN_CHANNEL} and {self.MAX_CHANNEL}")
+            tristatedata += self._encode_bits(
+                val=channel - 1,
+                symbol_low="0",
+                symbol_high="F",
+                width=2,
+                msb=False,
+            )
+
+        if group is None:
+            tristatedata += "XX" # switch all groups
+        else:
+            if group is not None and not (self.MIN_GROUP <= group <= self.MAX_GROUP):
+                raise ValueError(f"group must be between {self.MIN_GROUP} and {self.MAX_GROUP}")
+
+            if not (self.MIN_GROUP <= group <= self.MAX_GROUP):
+                raise ValueError(f"group must be between {self.MIN_GROUP} and {self.MAX_GROUP}")
+            tristatedata += self._encode_bits(
+                val=group - 1,
+                symbol_low="0",
+                symbol_high="F",
+                width=2,
+                msb=False,
+            )
+
+        tristatedata += "0F" # symbol 9-10 fix in intertechno tristate
+        tristatedata += "FF" if onoff else "F0"
+#        raise ValueError(tristatedata)
+
+        super().__init__(
+            data=tristatedata,
+            timebase_us=timebase_us,
+            frequency=frequency,
+            repeat_count=repeat_count,
+        )
