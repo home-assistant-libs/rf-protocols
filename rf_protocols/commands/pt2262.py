@@ -135,12 +135,10 @@ class ITTristateCommand(PT2262Command):
         """Initialize the Intertechno tristate command."""
         tristatedata = ""
 
-        normalized_housecode = housecode.upper()
-        if normalized_housecode not in self.VALID_HOUSECODES:
-            raise ValueError("housecode must be in [A-P]")
+        self.validate_housecode(housecode)
 
         tristatedata += self._encode_bits(
-            val=ord(normalized_housecode) - ord("A"),
+            val=ord(housecode.upper()) - ord("A"),
             symbol_low="0",
             symbol_high="F",
             width=4,
@@ -150,8 +148,7 @@ class ITTristateCommand(PT2262Command):
         if channel is None:
             tristatedata += "XX" # switch all channels
         else:
-            if not (self.MIN_CHANNEL <= channel <= self.MAX_CHANNEL):
-                raise ValueError(f"channel must be between {self.MIN_CHANNEL} and {self.MAX_CHANNEL}")
+            self.validate_channel(channel)
             tristatedata += self._encode_bits(
                 val=channel - 1,
                 symbol_low="0",
@@ -163,11 +160,7 @@ class ITTristateCommand(PT2262Command):
         if group is None:
             tristatedata += "XX" # switch all groups
         else:
-            if group is not None and not (self.MIN_GROUP <= group <= self.MAX_GROUP):
-                raise ValueError(f"group must be between {self.MIN_GROUP} and {self.MAX_GROUP}")
-
-            if not (self.MIN_GROUP <= group <= self.MAX_GROUP):
-                raise ValueError(f"group must be between {self.MIN_GROUP} and {self.MAX_GROUP}")
+            self.validate_group(group)
             tristatedata += self._encode_bits(
                 val=group - 1,
                 symbol_low="0",
@@ -178,7 +171,6 @@ class ITTristateCommand(PT2262Command):
 
         tristatedata += "0F" # symbol 9-10 fix in intertechno tristate
         tristatedata += "FF" if onoff else "F0"
-#        raise ValueError(tristatedata)
 
         super().__init__(
             data=tristatedata,
@@ -186,3 +178,70 @@ class ITTristateCommand(PT2262Command):
             frequency=frequency,
             repeat_count=repeat_count,
         )
+
+    def validate_housecode(self, housecode: str) -> None:
+        normalized_housecode = housecode.upper()
+        if normalized_housecode not in self.VALID_HOUSECODES:
+            raise ValueError("housecode must be in [A-P]")
+
+    def validate_group(self, group: int) -> None:
+        if not (self.MIN_GROUP <= group <= self.MAX_GROUP):
+            raise ValueError(f"group must be between {self.MIN_GROUP} and {self.MAX_GROUP}")
+
+    def validate_channel(self, channel: int) -> None:
+        if not (self.MIN_CHANNEL <= channel <= self.MAX_CHANNEL):
+            raise ValueError(f"channel must be between {self.MIN_CHANNEL} and {self.MAX_CHANNEL}")
+
+class BrennenstuhlRCS1000Command(PT2262Command):
+    """OOK command for Brennenstuhl RCS1000 devices."""
+    MIN_CHANNEL: Final = 1
+    MAX_CHANNEL: Final = 4
+
+    def __init__(
+        self,
+        *,
+        housecode: str,
+        channel: int,
+        onoff: bool,
+        timebase_us: int = 350,
+        frequency: int = 433_920_000,
+        repeat_count: int = 5,
+    ) -> None:
+        tristatedata = ""
+
+        self.validate_housecode(housecode)
+
+        tristatedata += self._encode_bits(
+            val=int(housecode, 2),
+            symbol_low="F",
+            symbol_high="0",
+            width=5,
+            msb=False,
+        )
+
+        self.validate_channel(channel)
+        tristatedata += self._encode_bits(
+            val=2**(channel - 1),
+            symbol_low="F",
+            symbol_high="0",
+            width=4,
+            msb=False,
+        )
+
+        tristatedata += "F" # symbol 10 fix in brennenstuhl RCS1000
+        tristatedata += "0F" if onoff else "F0"
+
+        super().__init__(
+            data=tristatedata,
+            timebase_us=timebase_us,
+            frequency=frequency,
+            repeat_count=repeat_count,
+        )
+
+    def validate_housecode(self, housecode: str) -> None:
+        if not isinstance(housecode, str) or len(housecode) != 5 or any(ch not in ("0", "1") for ch in housecode):
+            raise ValueError("housecode must be a 5-character string containing only '0' and '1'")
+
+    def validate_channel(self, channel: int) -> None:
+        if not (self.MIN_CHANNEL <= channel <= self.MAX_CHANNEL):
+            raise ValueError(f"channel must be between {self.MIN_CHANNEL} and {self.MAX_CHANNEL}")
